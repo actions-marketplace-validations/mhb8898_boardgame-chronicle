@@ -1,9 +1,11 @@
 import { loadChronicle, type Chronicle } from './load';
+import { readConfig, type ChronicleConfig } from './config';
 import { computeAwards } from '../badges/engine';
 import type { Award } from '../badges/types';
 
 /** Everything pages need, loaded and validated once per build. */
 export interface Site {
+  config: ChronicleConfig;
   chronicle: Chronicle;
   awards: Award[];
   playerName(id: string): string;
@@ -22,6 +24,7 @@ export function getSite(): Site {
   const games = new Map(chronicle.games.map((g) => [g.id, g.name]));
   const groups = new Map(chronicle.groups.map((g) => [g.id, g.name]));
   cached = {
+    config: readConfig(),
     chronicle,
     awards,
     playerName: (id) => players.get(id)?.name ?? id,

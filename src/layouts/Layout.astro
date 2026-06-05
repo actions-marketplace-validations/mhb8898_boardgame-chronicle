@@ -1,10 +1,11 @@
 ---
-import { href } from '../lib/site';
+import { getSite, href } from '../lib/site';
 
 interface Props {
   title: string;
 }
 const { title } = Astro.props;
+const { config } = getSite();
 
 const nav = [
   { label: 'Home', path: '/' },
@@ -21,11 +22,11 @@ const nav = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
-    <title>{title} · Boardgame Chronicle</title>
+    <title>{title} · {config.title}</title>
   </head>
   <body>
     <header>
-      <a class="brand" href={href('/')}>🎲 Boardgame Chronicle</a>
+      <a class="brand" href={href('/')}>🎲 {config.title}</a>
       <nav>
         {nav.map((item) => <a href={href(item.path)}>{item.label}</a>)}
       </nav>
@@ -33,7 +34,14 @@ const nav = [
     <main>
       <slot />
     </main>
-    <footer>Generated from the game log · <a href="https://github.com/mhb8898/boardgame-chronicle">data &amp; source</a></footer>
+    <footer>
+      Generated from the game log{config.repoUrl && (
+        <>
+          {' · '}
+          <a href={config.repoUrl}>data &amp; source</a>
+        </>
+      )}
+    </footer>
   </body>
 </html>
 

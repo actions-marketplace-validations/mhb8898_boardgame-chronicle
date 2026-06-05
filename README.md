@@ -1,11 +1,69 @@
 # 🎲 Boardgame Chronicle
 
-A personal boardgame play log compiled into a static website. The git repo is the
-database: each play session is a small YAML file. On every push, GitHub Actions
-validates the data, recomputes all stats and badges, and deploys the site to
-GitHub Pages.
+A personal boardgame play log compiled into a static website. Your git repo is
+the database: each play session is a small YAML file. On every push, GitHub
+Actions validates the data, recomputes all stats and badges, and deploys the
+site to GitHub Pages.
 
-**Live site:** https://mhb8898.github.io/boardgame-chronicle/
+**Demo (this repo's sample data):** https://mhb8898.github.io/boardgame-chronicle/
+
+## Use it for your own log
+
+This repo is the **engine**. Your data lives in a separate, tiny repo — you
+never fork or copy the engine code.
+
+1. Create a new repo (public, for free GitHub Pages) with this layout:
+
+   ```
+   your-gamelog/
+   ├── data/
+   │   ├── players.yaml
+   │   ├── groups.yaml
+   │   ├── games.yaml
+   │   ├── sessions/           # one YAML file per play
+   │   └── badges/manual.yaml  # optional
+   ├── chronicle.config.yaml
+   └── .github/workflows/deploy.yml
+   ```
+
+   Copy the formats from this repo's `data/` directory (it's the demo dataset).
+
+2. `chronicle.config.yaml`:
+
+   ```yaml
+   title: My Game Log
+   site: https://YOUR-USERNAME.github.io
+   base: /your-gamelog            # your repo name
+   repoUrl: https://github.com/YOUR-USERNAME/your-gamelog   # optional footer link
+   ```
+
+3. `.github/workflows/deploy.yml`:
+
+   ```yaml
+   name: Deploy
+   on:
+     push: { branches: [main] }
+     workflow_dispatch:
+   permissions: { contents: read, pages: write, id-token: write }
+   jobs:
+     chronicle:
+       uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
+       # Pin a release for stability:
+       # with: { engine-ref: v1.0.0 }
+   ```
+
+4. In your repo: **Settings → Pages → Source → GitHub Actions**. Push — your
+   site is live.
+
+### Upgrading
+
+- Tracking `@main` (the default): every push of yours builds with the latest
+  engine — nothing to do.
+- Pinned to a tag: bump both the `@vX.Y.Z` in `uses:` and `engine-ref` when a
+  new [release](https://github.com/mhb8898/boardgame-chronicle/releases) is out.
+
+Your data never changes shape silently: any breaking data-format change comes
+with a major version tag and release notes.
 
 ## Logging a session
 

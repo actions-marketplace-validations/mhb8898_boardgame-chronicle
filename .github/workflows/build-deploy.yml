@@ -1,0 +1,82 @@
+# Reusable workflow: data repos call this to build & deploy their chronicle.
+#
+# Minimal caller (in your data repo, .github/workflows/deploy.yml):
+#
+#   name: Deploy
+#   on:
+#     push: { branches: [main] }
+#     workflow_dispatch:
+#   permissions: { contents: read, pages: write, id-token: write }
+#   jobs:
+#     chronicle:
+#       uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
+#       # Pin a version for stability:
+#       # with: { engine-ref: v1.0.0 }
+
+name: Build & Deploy Chronicle
+
+on:
+  workflow_call:
+    inputs:
+      engine-ref:
+        description: Git ref of the engine to build with (tag, branch, or SHA)
+        type: string
+        default: main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout engine
+        uses: actions/checkout@v4
+        with:
+          repository: mhb8898/boardgame-chronicle
+          ref: ${{ inputs.engine-ref }}
+
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        with:
+          path: site-data
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Engine self-test against its demo data, before the overlay.
+      - run: npm test
+
+      - name: Overlay data and config
+        run: |
+          rm -rf data
+          cp -r site-data/data data
+          if [ -f site-data/chronicle.config.yaml ]; then
+            cp site-data/chronicle.config.yaml chronicle.config.yaml
+          fi
+
+      - run: npx astro build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
