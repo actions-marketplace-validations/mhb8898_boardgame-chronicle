@@ -1,0 +1,13 @@
+# Player roster. Every player referenced in sessions must exist here.
+- id: mahdi
+  name: Mahdi
+  avatar: "🦅"
+- id: sara
+  name: Sara
+  avatar: "🐱"
+- id: ali
+  name: Ali
+  avatar: "🦊"
+- id: niki
+  name: Niki
+  avatar: "🐰"

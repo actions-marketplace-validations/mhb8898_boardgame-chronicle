@@ -1,0 +1,8 @@
+date: 2026-05-07
+game: root
+group: thursday-crew
+notes: Sara's Alliance revolt on turn 6 flipped the whole board.
+players:
+  - { player: sara, faction: alliance, winner: true }
+  - { player: mahdi, faction: marquise }
+  - { player: ali, faction: eyrie }

@@ -1,0 +1,8 @@
+date: 2026-04-23
+game: root
+group: thursday-crew
+notes: First Root night. Ali's Marquise steamrolled while we were learning the rules.
+players:
+  - { player: ali, faction: marquise, winner: true }
+  - { player: mahdi, faction: alliance }
+  - { player: sara, faction: vagabond }

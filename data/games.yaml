@@ -1,0 +1,26 @@
+# Game registry. Factions are optional; list them to unlock faction badges.
+- id: root
+  name: Root
+  bggId: 237182
+  minPlayers: 2
+  maxPlayers: 4
+  factions:
+    - { id: marquise, name: Marquise de Cat }
+    - { id: eyrie, name: Eyrie Dynasties }
+    - { id: alliance, name: Woodland Alliance }
+    - { id: vagabond, name: Vagabond }
+- id: azul
+  name: Azul
+  bggId: 230802
+  minPlayers: 2
+  maxPlayers: 4
+- id: wingspan
+  name: Wingspan
+  bggId: 266192
+  minPlayers: 1
+  maxPlayers: 5
+- id: catan
+  name: Catan
+  bggId: 13
+  minPlayers: 3
+  maxPlayers: 4

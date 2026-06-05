@@ -1,0 +1,7 @@
+# Hand-awarded badges for special moments. Reference a session when possible.
+- id: rules-lawyer
+  title: Rules Lawyer
+  description: Settled three rules arguments in one night without opening the rulebook.
+  icon: "⚖️"
+  player: ali
+  session: 2026-04-23-root

@@ -1,0 +1,8 @@
+date: 2026-06-05
+game: root
+group: thursday-crew
+notes: Eyries dominated the east from turn 3 and never collapsed. First Eyrie win!
+players:
+  - { player: mahdi, faction: eyrie, winner: true }
+  - { player: sara, faction: marquise, score: 24 }
+  - { player: ali, faction: vagabond, score: 19 }

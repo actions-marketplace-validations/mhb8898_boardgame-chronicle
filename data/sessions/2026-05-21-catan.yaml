@@ -1,0 +1,8 @@
+date: 2026-05-21
+game: catan
+group: thursday-crew
+location: Ali's place
+players:
+  - { player: mahdi, score: 10, winner: true }
+  - { player: ali, score: 8 }
+  - { player: sara, score: 7 }

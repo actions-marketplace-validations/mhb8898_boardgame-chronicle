@@ -1,0 +1,7 @@
+date: 2026-05-02
+game: wingspan
+group: family-table
+players:
+  - { player: mahdi, score: 89, winner: true }
+  - { player: niki, score: 84 }
+  - { player: sara, score: 77 }

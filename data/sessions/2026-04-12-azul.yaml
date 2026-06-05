@@ -1,0 +1,7 @@
+date: 2026-04-12
+game: azul
+group: family-table
+players:
+  - { player: sara, score: 71, winner: true }
+  - { player: mahdi, score: 64 }
+  - { player: niki, score: 58 }

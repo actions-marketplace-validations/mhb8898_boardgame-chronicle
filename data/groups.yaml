@@ -1,0 +1,9 @@
+# Play groups. Members reference player ids.
+- id: thursday-crew
+  name: Thursday Crew
+  description: Weekly heavy-game night.
+  members: [mahdi, sara, ali]
+- id: family-table
+  name: Family Table
+  description: Lighter games on weekends.
+  members: [mahdi, sara, niki]
