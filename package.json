@@ -10,7 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "test": "vitest run"
+    "test": "vitest run",
+    "validate-session": "tsx scripts/validate-session.ts"
   },
   "dependencies": {
     "astro": "^6.4.4",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
+    "tsx": "^4.22.4",
     "vitest": "^4.1.8"
   }
 }

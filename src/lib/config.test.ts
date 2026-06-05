@@ -32,6 +32,14 @@ describe('readConfig', () => {
     });
   });
 
+  test('accepts dataRepoUrl, absent by default', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chronicle-cfg-'));
+    const file = path.join(dir, 'chronicle.config.yaml');
+    fs.writeFileSync(file, 'dataRepoUrl: https://github.com/example/gamelog');
+    expect(readConfig(file).dataRepoUrl).toBe('https://github.com/example/gamelog');
+    expect(readConfig(path.join(dir, 'missing.yaml')).dataRepoUrl).toBeUndefined();
+  });
+
   test('rejects unknown keys with a clear error', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chronicle-cfg-'));
     const file = path.join(dir, 'chronicle.config.yaml');

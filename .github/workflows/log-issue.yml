@@ -1,0 +1,216 @@
+# Reusable workflow: turn "Log a play" issues into committed session files.
+#
+# A data repo calls this from its own workflow on issue events. Flow:
+#   1. Issue opened/edited with the `log` label or a "[log]" title: the YAML
+#      block in the issue body is validated against the repo's data with the
+#      engine's own schema + cross-reference checks. The result is posted as a
+#      comment — errors, or a preview waiting for approval.
+#   2. A maintainer (write/admin permission) adds the approval label: the
+#      session file is committed to the default branch and the issue closed.
+#      The `committed` output turns true so the caller can chain a deploy
+#      (pushes made with GITHUB_TOKEN do not trigger push workflows).
+#
+# Minimal caller (in your data repo, .github/workflows/log.yml):
+#
+#   name: Log Session
+#   on:
+#     issues: { types: [opened, edited, labeled] }
+#   permissions: { contents: write, issues: write, pages: write, id-token: write }
+#   jobs:
+#     log:
+#       uses: mhb8898/boardgame-chronicle/.github/workflows/log-issue.yml@main
+#     deploy:
+#       needs: log
+#       if: needs.log.outputs.committed == 'true'
+#       uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
+
+name: Log Session via Issue
+
+on:
+  workflow_call:
+    inputs:
+      engine-ref:
+        description: Git ref of the engine to validate with (tag, branch, or SHA)
+        type: string
+        default: main
+      approve-label:
+        description: Label a maintainer adds to approve the session
+        type: string
+        default: approved
+    outputs:
+      committed:
+        description: '"true" when a session file was committed'
+        value: ${{ jobs.handle.outputs.committed }}
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: log-issue-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  handle:
+    # Only handle issues created by the log form (label or title marker).
+    if: >
+      contains(github.event.issue.labels.*.name, 'log') ||
+      startsWith(github.event.issue.title, '[log]')
+    runs-on: ubuntu-latest
+    outputs:
+      committed: ${{ steps.commit.outputs.committed }}
+    env:
+      IS_APPROVAL: >-
+        ${{ github.event.action == 'labeled' && github.event.label.name == inputs.approve-label }}
+    steps:
+      - name: Checkout engine
+        uses: actions/checkout@v4
+        with:
+          repository: mhb8898/boardgame-chronicle
+          ref: ${{ inputs.engine-ref }}
+
+      - name: Checkout data repo
+        uses: actions/checkout@v4
+        with:
+          path: site-data
+
+      - name: Extract YAML from issue body
+        id: extract
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = context.payload.issue.body || '';
+            const match = body.match(/```ya?ml\r?\n([\s\S]*?)```/);
+            if (!match) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.payload.issue.number,
+                body: '⚠️ No ```yaml code block found in the issue body. Please submit via the "Log a play" form, or add the session YAML in a fenced ```yaml block.',
+              });
+              core.setOutput('found', 'false');
+              return;
+            }
+            fs.writeFileSync(`${process.env.RUNNER_TEMP}/candidate.yaml`, match[1]);
+            core.setOutput('found', 'true');
+
+      - uses: actions/setup-node@v4
+        if: steps.extract.outputs.found == 'true'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install engine dependencies
+        if: steps.extract.outputs.found == 'true'
+        run: npm ci
+
+      - name: Overlay data repo
+        if: steps.extract.outputs.found == 'true'
+        run: |
+          rm -rf data
+          cp -r site-data/data data
+          if [ -f site-data/chronicle.config.yaml ]; then
+            cp site-data/chronicle.config.yaml chronicle.config.yaml
+          fi
+
+      - name: Validate session
+        id: validate
+        if: steps.extract.outputs.found == 'true'
+        run: |
+          set +e
+          npx tsx scripts/validate-session.ts \
+            --yaml-file "$RUNNER_TEMP/candidate.yaml" --data-dir data > out.txt 2> err.txt
+          cat out.txt err.txt
+          result=$(awk '/^===RESULT===$/{found=1; next} found{print; exit}' out.txt)
+          if [ -z "$result" ]; then
+            result='{"ok":false,"error":"validator crashed — see the workflow logs"}'
+          fi
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "ok=$(echo "$result" | jq -r .ok)" >> "$GITHUB_OUTPUT"
+          echo "filename=$(echo "$result" | jq -r '.filename // empty')" >> "$GITHUB_OUTPUT"
+
+      - name: Comment validation error
+        if: steps.extract.outputs.found == 'true' && steps.validate.outputs.ok != 'true'
+        uses: actions/github-script@v7
+        env:
+          RESULT: ${{ steps.validate.outputs.result }}
+        with:
+          script: |
+            const { error } = JSON.parse(process.env.RESULT);
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              body: `❌ This session is not valid:\n\n> ${error}\n\nEdit the issue body to fix it — it will be re-checked automatically.`,
+            });
+
+      - name: Comment preview, wait for approval
+        if: steps.validate.outputs.ok == 'true' && env.IS_APPROVAL != 'true'
+        uses: actions/github-script@v7
+        env:
+          RESULT: ${{ steps.validate.outputs.result }}
+          APPROVE_LABEL: ${{ inputs.approve-label }}
+        with:
+          script: |
+            const { preview, filename } = JSON.parse(process.env.RESULT);
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              body: `✅ Valid session — will be saved as \`data/sessions/${filename}\`.\n\n${preview}\n\nWaiting for a maintainer to add the **${process.env.APPROVE_LABEL}** label.`,
+            });
+
+      - name: Check approver permission
+        id: perm
+        if: steps.validate.outputs.ok == 'true' && env.IS_APPROVAL == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+              ...context.repo,
+              username: context.actor,
+            });
+            const allowed = ['admin', 'write'].includes(data.permission);
+            if (!allowed) {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: context.payload.issue.number,
+                body: `🔒 Only maintainers can approve sessions (@${context.actor} has "${data.permission}" permission).`,
+              });
+            }
+            core.setOutput('allowed', String(allowed));
+
+      - name: Commit session file
+        id: commit
+        if: steps.perm.outputs.allowed == 'true'
+        env:
+          FILENAME: ${{ steps.validate.outputs.filename }}
+          ISSUE: ${{ github.event.issue.number }}
+        run: |
+          cd site-data
+          mkdir -p data/sessions
+          cp "$RUNNER_TEMP/candidate.yaml" "data/sessions/$FILENAME"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/sessions
+          git commit -m "Log session ${FILENAME%.yaml} (#$ISSUE)"
+          git push
+          echo "committed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Close issue
+        if: steps.commit.outputs.committed == 'true'
+        uses: actions/github-script@v7
+        env:
+          FILENAME: ${{ steps.validate.outputs.filename }}
+        with:
+          script: |
+            const file = `data/sessions/${process.env.FILENAME}`;
+            const url = `https://github.com/${context.repo.owner}/${context.repo.repo}/blob/HEAD/${file}`;
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              body: `🎉 Session committed as [\`${file}\`](${url}). The site will update shortly.`,
+            });
+            await github.rest.issues.update({
+              ...context.repo,
+              issue_number: context.payload.issue.number,
+              state: 'closed',
+            });

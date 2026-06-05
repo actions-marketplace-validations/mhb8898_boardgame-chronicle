@@ -11,6 +11,11 @@ export const ConfigSchema = z.strictObject({
   base: z.string().optional(),
   /** Linked in the footer. */
   repoUrl: z.string().optional(),
+  /**
+   * Repo whose Issues the "Log a play" form targets. Setting this in a data
+   * repo's config is what enables the /log page; without it the form is off.
+   */
+  dataRepoUrl: z.string().optional(),
 });
 
 export type ChronicleConfig = z.infer<typeof ConfigSchema>;
