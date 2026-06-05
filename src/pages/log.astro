@@ -1,0 +1,351 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getSite } from '../lib/site';
+
+const site = getSite();
+const dataRepoUrl = site.config.dataRepoUrl;
+
+// Only the subset the client script needs, baked in at build time.
+const formData = {
+  repoUrl: dataRepoUrl ?? '',
+  games: site.chronicle.games.map((g) => ({
+    id: g.id,
+    name: g.name,
+    factions: (g.factions ?? []).map((f) => ({ id: f.id, name: f.name })),
+  })),
+  groups: site.chronicle.groups.map((g) => ({ id: g.id, name: g.name, members: g.members })),
+  players: site.chronicle.players.map((p) => ({ id: p.id, name: p.name, avatar: p.avatar })),
+};
+---
+
+<Layout title="Log a play">
+  <h1>✍️ Log a play</h1>
+  {
+    !dataRepoUrl ? (
+      <section class="card">
+        <p class="muted">
+          Logging from the site is not enabled. Set <code>dataRepoUrl</code> in
+          <code>chronicle.config.yaml</code> to the GitHub repo that holds your data to turn it
+          on.
+        </p>
+      </section>
+    ) : (
+      <>
+        <p class="muted">
+          Fill in the session and submit — it opens a prefilled GitHub issue. A maintainer
+          approves it and the play lands in the log.
+        </p>
+        <script type="application/json" id="log-data" set:html={JSON.stringify(formData)} />
+        <form id="log-form" class="card">
+          <div class="field-row">
+            <label>
+              Date
+              <input type="date" name="date" required />
+            </label>
+            <label>
+              Game
+              <select name="game" required>
+                <option value="" disabled selected>
+                  Pick a game…
+                </option>
+              </select>
+            </label>
+            <label>
+              Group
+              <select name="group" required>
+                <option value="" disabled selected>
+                  Pick a group…
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <h2>Players</h2>
+          <div id="player-rows" />
+          <button type="button" id="add-player" class="secondary">
+            + Add player
+          </button>
+
+          <h2>Details (optional)</h2>
+          <label>
+            Location
+            <input type="text" name="location" placeholder="Where was it played?" />
+          </label>
+          <label>
+            Notes
+            <textarea name="notes" rows="3" placeholder="How did it go?" />
+          </label>
+
+          <p id="form-error" class="error" hidden />
+          <button type="submit" id="submit">Open GitHub issue</button>
+
+          <div id="fallback" hidden>
+            <p class="muted">
+              The session is too long to prefill an issue. Copy the YAML below, then paste it
+              into a <a id="blank-issue-link" href="#">new issue</a> (inside a <code>```yaml</code>
+              code block).
+            </p>
+            <textarea id="fallback-yaml" rows="10" readonly />
+            <button type="button" id="copy-yaml" class="secondary">Copy YAML</button>
+          </div>
+        </form>
+      </>
+    )
+  }
+</Layout>
+
+<script>
+  import {
+    buildSessionYaml,
+    buildIssueBody,
+    buildIssueTitle,
+    buildIssueUrl,
+    ISSUE_URL_SOFT_LIMIT,
+    type LogFormInput,
+    type LogFormPlayer,
+  } from '../lib/log-session';
+
+  interface FormData {
+    repoUrl: string;
+    games: { id: string; name: string; factions: { id: string; name: string }[] }[];
+    groups: { id: string; name: string; members: string[] }[];
+    players: { id: string; name: string; avatar?: string }[];
+  }
+
+  const dataEl = document.getElementById('log-data');
+  const form = document.getElementById('log-form') as HTMLFormElement | null;
+  if (dataEl && form) {
+    const data: FormData = JSON.parse(dataEl.textContent ?? '{}');
+
+    const dateInput = form.querySelector<HTMLInputElement>('input[name=date]')!;
+    const gameSelect = form.querySelector<HTMLSelectElement>('select[name=game]')!;
+    const groupSelect = form.querySelector<HTMLSelectElement>('select[name=group]')!;
+    const rowsEl = document.getElementById('player-rows')!;
+    const errorEl = document.getElementById('form-error')!;
+    const fallbackEl = document.getElementById('fallback')!;
+
+    // Today in local time, not UTC.
+    const now = new Date();
+    dateInput.value = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
+
+    for (const g of data.games) gameSelect.add(new Option(g.name, g.id));
+    for (const g of data.groups) groupSelect.add(new Option(g.name, g.id));
+
+    function playerLabel(id: string): string {
+      const p = data.players.find((p) => p.id === id);
+      return p ? `${p.avatar ? p.avatar + ' ' : ''}${p.name}` : id;
+    }
+
+    function currentFactions() {
+      return data.games.find((g) => g.id === gameSelect.value)?.factions ?? [];
+    }
+
+    function addRow(playerId = ''): void {
+      const row = document.createElement('div');
+      row.className = 'player-row';
+
+      const playerSel = document.createElement('select');
+      playerSel.className = 'p-player';
+      playerSel.add(new Option('Player…', '', true, false));
+      (playerSel.options[0] as HTMLOptionElement).disabled = true;
+      for (const p of data.players) playerSel.add(new Option(playerLabel(p.id), p.id));
+      playerSel.value = playerId;
+
+      const factionSel = document.createElement('select');
+      factionSel.className = 'p-faction';
+
+      const score = document.createElement('input');
+      score.type = 'number';
+      score.className = 'p-score';
+      score.placeholder = 'Score';
+      score.inputMode = 'numeric';
+
+      const winnerLabel = document.createElement('label');
+      winnerLabel.className = 'p-winner';
+      const winner = document.createElement('input');
+      winner.type = 'checkbox';
+      winnerLabel.append(winner, ' 🏆');
+
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'p-remove secondary';
+      remove.textContent = '✕';
+      remove.addEventListener('click', () => row.remove());
+
+      row.append(playerSel, factionSel, score, winnerLabel, remove);
+      rowsEl.append(row);
+      refreshFactions();
+    }
+
+    function refreshFactions(): void {
+      const factions = currentFactions();
+      for (const sel of rowsEl.querySelectorAll<HTMLSelectElement>('.p-faction')) {
+        const prev = sel.value;
+        sel.innerHTML = '';
+        sel.hidden = factions.length === 0;
+        if (factions.length === 0) continue;
+        sel.add(new Option('Faction…', ''));
+        for (const f of factions) sel.add(new Option(f.name, f.id));
+        if (factions.some((f) => f.id === prev)) sel.value = prev;
+      }
+    }
+
+    gameSelect.addEventListener('change', refreshFactions);
+
+    groupSelect.addEventListener('change', () => {
+      const members = data.groups.find((g) => g.id === groupSelect.value)?.members ?? [];
+      rowsEl.innerHTML = '';
+      for (const m of members) addRow(m);
+    });
+
+    document.getElementById('add-player')!.addEventListener('click', () => addRow());
+
+    function showError(msg: string): void {
+      errorEl.textContent = msg;
+      errorEl.hidden = false;
+    }
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      errorEl.hidden = true;
+
+      const players: LogFormPlayer[] = [];
+      for (const row of rowsEl.querySelectorAll('.player-row')) {
+        const player = row.querySelector<HTMLSelectElement>('.p-player')!.value;
+        if (!player) continue;
+        const faction = row.querySelector<HTMLSelectElement>('.p-faction')!.value;
+        const scoreRaw = row.querySelector<HTMLInputElement>('.p-score')!.value;
+        players.push({
+          player,
+          faction: faction || undefined,
+          score: scoreRaw === '' ? undefined : Number(scoreRaw),
+          winner: row.querySelector<HTMLInputElement>('.p-winner input')!.checked,
+        });
+      }
+
+      if (!gameSelect.value) return showError('Pick a game.');
+      if (!groupSelect.value) return showError('Pick a group.');
+      if (players.length === 0) return showError('Add at least one player.');
+      const ids = players.map((p) => p.player);
+      if (new Set(ids).size !== ids.length) return showError('Each player can only appear once.');
+
+      const input: LogFormInput = {
+        date: dateInput.value,
+        game: gameSelect.value,
+        group: groupSelect.value,
+        location: form.querySelector<HTMLInputElement>('input[name=location]')!.value,
+        notes: form.querySelector<HTMLTextAreaElement>('textarea[name=notes]')!.value,
+        players,
+      };
+
+      const sessionYaml = buildSessionYaml(input);
+      const title = buildIssueTitle(input);
+      const url = buildIssueUrl(data.repoUrl, {
+        title,
+        body: buildIssueBody(sessionYaml),
+        labels: ['log'],
+      });
+
+      if (url.length > ISSUE_URL_SOFT_LIMIT) {
+        fallbackEl.hidden = false;
+        const yamlBox = document.getElementById('fallback-yaml') as HTMLTextAreaElement;
+        yamlBox.value = sessionYaml;
+        const link = document.getElementById('blank-issue-link') as HTMLAnchorElement;
+        link.href = buildIssueUrl(data.repoUrl, { title, body: '', labels: ['log'] });
+        link.target = '_blank';
+        document.getElementById('copy-yaml')!.addEventListener('click', () => {
+          navigator.clipboard.writeText(yamlBox.value);
+        });
+        return;
+      }
+
+      window.open(url, '_blank');
+    });
+  }
+</script>
+
+<style>
+  form label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 0.75rem 0 0;
+  }
+  form input,
+  form select,
+  form textarea {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    padding: 0.55rem 0.6rem;
+    font: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .field-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0 0.75rem;
+  }
+  :global(.player-row) {
+    display: grid;
+    grid-template-columns: 1fr 1fr 4.5rem auto auto;
+    gap: 0.4rem;
+    align-items: center;
+    margin: 0.4rem 0;
+  }
+  :global(.player-row select),
+  :global(.player-row input) {
+    margin-top: 0;
+    width: auto;
+    min-width: 0;
+  }
+  :global(.player-row .p-winner) {
+    margin: 0;
+    white-space: nowrap;
+    font-weight: 400;
+  }
+  :global(.player-row .p-winner input) {
+    display: inline;
+    width: auto;
+  }
+  button {
+    font: inherit;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 0.6rem 1.1rem;
+    margin-top: 1rem;
+    cursor: pointer;
+  }
+  button.secondary,
+  :global(.player-row button.secondary) {
+    background: var(--accent-soft);
+    color: var(--accent);
+    margin-top: 0.25rem;
+    padding: 0.35rem 0.7rem;
+  }
+  :global(.player-row .p-remove) {
+    justify-self: start;
+    margin-top: 0;
+  }
+  .error {
+    color: #b00020;
+    font-weight: 600;
+  }
+  @media (max-width: 480px) {
+    :global(.player-row) {
+      grid-template-columns: 1fr 1fr;
+      grid-auto-rows: auto;
+    }
+  }
+</style>

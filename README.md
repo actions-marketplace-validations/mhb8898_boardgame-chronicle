@@ -135,6 +135,48 @@ players:
 Commit, push — done. The build **fails loudly** on any typo'd id, unknown
 faction, or malformed file, so bad data never reaches the site.
 
+### Logging from the site (no git needed)
+
+Optionally, your site can grow a **“+ Log a play” form** — phone-friendly,
+with dropdowns for your actual games, groups, players, and factions. Friends
+just need a GitHub account; no git knowledge.
+
+How it works: the form opens a prefilled GitHub issue on your data repo → a
+workflow validates the YAML with the engine's own schema and posts a preview
+comment → a maintainer adds the **approved** label → the session is committed
+and the site redeploys. Invalid submissions get the error as a comment instead.
+
+To enable it, in your **data repo**:
+
+1. Add to `chronicle.config.yaml` (this switches the form on):
+
+   ```yaml
+   dataRepoUrl: https://github.com/YOUR-USERNAME/your-gamelog
+   ```
+
+2. Add `.github/workflows/log.yml`:
+
+   ```yaml
+   name: Log Session
+   on:
+     issues: { types: [opened, edited, labeled] }
+   permissions: { contents: write, issues: write, pages: write, id-token: write }
+   jobs:
+     log:
+       uses: mhb8898/boardgame-chronicle/.github/workflows/log-issue.yml@main
+     deploy: # GITHUB_TOKEN pushes don't trigger the push-based deploy
+       needs: log
+       if: needs.log.outputs.committed == 'true'
+       uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
+   ```
+
+3. Create the `log` and `approved` labels in your repo
+   (`gh label create log` / `gh label create approved`).
+
+Only users with **write** permission on the repo can approve. The validation
+logic is also available locally: `npm run validate-session -- --yaml-file
+<file> [--data-dir data]`.
+
 ## Adding players, groups, games
 
 - `data/players.yaml` — roster: `id`, `name`, optional `avatar` emoji.
