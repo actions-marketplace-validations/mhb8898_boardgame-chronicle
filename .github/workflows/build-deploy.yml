@@ -11,7 +11,10 @@
 #     chronicle:
 #       uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
 #       # Pin a version for stability:
-#       # with: { engine-ref: v1.0.0 }
+#       # with: { engine-ref: v1 }
+#
+# Prefer composing your own workflow? Use the action directly:
+#   uses: mhb8898/boardgame-chronicle@v1   (see action.yml)
 
 name: Build & Deploy Chronicle
 
@@ -47,29 +50,12 @@ jobs:
         with:
           path: site-data
 
-      - uses: actions/setup-node@v4
+      # The engine checkout at the workspace root is also the composite
+      # action (action.yml), so the engine-ref input picks the action version.
+      - name: Build chronicle
+        uses: ./
         with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      # Engine self-test against its demo data, before the overlay.
-      - run: npm test
-
-      - name: Overlay data and config
-        run: |
-          rm -rf data
-          cp -r site-data/data data
-          if [ -f site-data/chronicle.config.yaml ]; then
-            cp site-data/chronicle.config.yaml chronicle.config.yaml
-          fi
-
-      - run: npx astro build
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
+          data-path: site-data
 
   deploy:
     needs: build

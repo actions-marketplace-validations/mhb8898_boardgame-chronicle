@@ -1,66 +1,114 @@
 # 🎲 Boardgame Chronicle
 
-A personal boardgame play log compiled into a static website. Your git repo is
-the database: each play session is a small YAML file. On every push, GitHub
-Actions validates the data, recomputes all stats and badges, and deploys the
-site to GitHub Pages.
+[![CI](https://github.com/mhb8898/boardgame-chronicle/actions/workflows/deploy.yml/badge.svg)](https://github.com/mhb8898/boardgame-chronicle/actions/workflows/deploy.yml)
+[![Release](https://img.shields.io/github/v/release/mhb8898/boardgame-chronicle)](https://github.com/mhb8898/boardgame-chronicle/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Demo (this repo's sample data):** https://mhb8898.github.io/boardgame-chronicle/
+**Track your board game nights with plain YAML files — get a beautiful stats
+& badges website for free.** No accounts, no apps, no database. Your git repo
+*is* the database: each play session is a small YAML file. On every push,
+GitHub Actions validates the data, recomputes all stats and badges, and
+deploys the site to GitHub Pages.
 
-## Use it for your own log
+**[Live demo →](https://mhb8898.github.io/boardgame-chronicle/)** (this repo's sample data)
 
-This repo is the **engine**. Your data lives in a separate, tiny repo — you
-never fork or copy the engine code.
+| Leaderboard & latest badges | Badge gallery |
+|---|---|
+| ![Home page with leaderboard](docs/screenshot-home.png) | ![Badge gallery](docs/screenshot-badges.png) |
 
-1. Create a new repo (public, for free GitHub Pages) with this layout:
+## Why
 
-   ```
-   your-gamelog/
-   ├── data/
-   │   ├── players.yaml
-   │   ├── groups.yaml
-   │   ├── games.yaml
-   │   ├── sessions/           # one YAML file per play
-   │   └── badges/manual.yaml  # optional
-   ├── chronicle.config.yaml
-   └── .github/workflows/deploy.yml
-   ```
+- 📝 **Logging a play = committing a 10-line YAML file** — from your phone, via the GitHub web UI if you like.
+- 🏆 **Badges are computed, not stored** — fix old data and history corrects itself. First wins, streaks, faction completionism, milestones.
+- 🛡️ **Builds fail loudly on bad data** — typo'd player id or unknown faction never reaches the site.
+- 🆓 **Free forever** — public repo + GitHub Pages + GitHub Actions.
+- 🔌 **Engine and data are separate repos** — upgrade the engine without touching your log, or pin a version and never think about it.
 
-   Copy the formats from this repo's `data/` directory (it's the demo dataset).
+## Quick start (5 minutes)
 
-2. `chronicle.config.yaml`:
+The easiest way: **[use the template repo →](https://github.com/mhb8898/boardgame-chronicle-template)**
 
-   ```yaml
-   title: My Game Log
-   site: https://YOUR-USERNAME.github.io
-   base: /your-gamelog            # your repo name
-   repoUrl: https://github.com/YOUR-USERNAME/your-gamelog   # optional footer link
-   ```
+1. Click **Use this template** → create your repo (public, for free GitHub Pages).
+2. In your new repo: **Settings → Pages → Source → GitHub Actions**.
+3. Edit `chronicle.config.yaml` with your title and URLs.
+4. Replace the example players/games/sessions in `data/` with yours.
+5. Push — your site is live.
 
-3. `.github/workflows/deploy.yml`:
+### Manual setup
 
-   ```yaml
-   name: Deploy
-   on:
-     push: { branches: [main] }
-     workflow_dispatch:
-   permissions: { contents: read, pages: write, id-token: write }
-   jobs:
-     chronicle:
-       uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
-       # Pin a release for stability:
-       # with: { engine-ref: v1.0.0 }
-   ```
+Create a repo with this layout (copy formats from this repo's `data/` directory):
 
-4. In your repo: **Settings → Pages → Source → GitHub Actions**. Push — your
-   site is live.
+```
+your-gamelog/
+├── data/
+│   ├── players.yaml
+│   ├── groups.yaml
+│   ├── games.yaml
+│   ├── sessions/           # one YAML file per play
+│   └── badges/manual.yaml  # optional
+├── chronicle.config.yaml
+└── .github/workflows/deploy.yml
+```
+
+`chronicle.config.yaml`:
+
+```yaml
+title: My Game Log
+site: https://YOUR-USERNAME.github.io
+base: /your-gamelog            # your repo name
+repoUrl: https://github.com/YOUR-USERNAME/your-gamelog   # optional footer link
+```
+
+`.github/workflows/deploy.yml` — pick one of two styles:
+
+**One-line job** (reusable workflow — simplest):
+
+```yaml
+name: Deploy
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+permissions: { contents: read, pages: write, id-token: write }
+jobs:
+  chronicle:
+    uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
+    # Pin a version for stability:
+    # with: { engine-ref: v1 }
+```
+
+**Composable step** (GitHub Action — if you want your own workflow):
+
+```yaml
+name: Deploy
+on:
+  push: { branches: [main] }
+  workflow_dispatch:
+permissions: { contents: read, pages: write, id-token: write }
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mhb8898/boardgame-chronicle@v1   # the engine version
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+```
 
 ### Upgrading
 
 - Tracking `@main` (the default): every push of yours builds with the latest
   engine — nothing to do.
-- Pinned to a tag: bump both the `@vX.Y.Z` in `uses:` and `engine-ref` when a
-  new [release](https://github.com/mhb8898/boardgame-chronicle/releases) is out.
+- Pinned to a tag: bump the `@vX` in `uses:` (and `engine-ref` for the
+  reusable workflow) when a new
+  [release](https://github.com/mhb8898/boardgame-chronicle/releases) is out.
+  The floating `v1` tag always points at the latest compatible release.
 
 Your data never changes shape silently: any breaking data-format change comes
 with a major version tag and release notes.
@@ -139,3 +187,7 @@ npm run build     # full static build (validates all data)
 
 Pushes to `main` run `.github/workflows/deploy.yml`: tests → Astro build →
 GitHub Pages. One-time setup: repo **Settings → Pages → Source → GitHub Actions**.
+
+## License
+
+[MIT](LICENSE)

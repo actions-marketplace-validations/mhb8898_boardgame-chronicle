@@ -1,0 +1,101 @@
+# Composite action: build a Boardgame Chronicle site from a data repo.
+#
+# The engine version is the action ref itself — `@v1`, `@v1.2.0`, or `@main`.
+#
+# Minimal caller (in your data repo):
+#
+#   jobs:
+#     build:
+#       runs-on: ubuntu-latest
+#       steps:
+#         - uses: actions/checkout@v4
+#         - uses: mhb8898/boardgame-chronicle@v1
+#     deploy:
+#       needs: build
+#       runs-on: ubuntu-latest
+#       permissions: { pages: write, id-token: write }
+#       environment:
+#         name: github-pages
+#         url: ${{ steps.deployment.outputs.page_url }}
+#       steps:
+#         - id: deployment
+#           uses: actions/deploy-pages@v4
+#
+# Prefer a single one-line job? Use the reusable workflow instead:
+#   uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@v1
+
+name: Boardgame Chronicle Builder
+description: >-
+  Turn a repo of YAML play logs into a static boardgame chronicle site
+  (stats, badges, factions) ready for GitHub Pages.
+author: Mahdi Bahreini
+branding:
+  icon: award
+  color: green
+
+inputs:
+  data-path:
+    description: Directory containing data/ and chronicle.config.yaml (your checked-out data repo)
+    default: .
+  config-file:
+    description: Site config file, relative to data-path
+    default: chronicle.config.yaml
+  run-tests:
+    description: Run the engine self-tests before building
+    default: "true"
+  upload-pages-artifact:
+    description: Upload the built site as a GitHub Pages artifact (for actions/deploy-pages)
+    default: "true"
+
+outputs:
+  site-dir:
+    description: Absolute path of the built static site
+    value: ${{ steps.site.outputs.site-dir }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: npm
+        cache-dependency-path: ${{ github.action_path }}/package-lock.json
+
+    - name: Install engine dependencies
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm ci
+
+    # Engine self-test against its demo data, before the overlay.
+    - name: Engine self-test
+      if: inputs.run-tests == 'true'
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npm test
+
+    - name: Overlay data and config
+      shell: bash
+      run: |
+        engine="${{ github.action_path }}"
+        data="${{ inputs.data-path }}"
+        rm -rf "$engine/data"
+        cp -r "$data/data" "$engine/data"
+        if [ -f "$data/${{ inputs.config-file }}" ]; then
+          cp "$data/${{ inputs.config-file }}" "$engine/chronicle.config.yaml"
+        fi
+
+    - name: Build site
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: npx astro build
+
+    - name: Expose site directory
+      id: site
+      shell: bash
+      run: echo "site-dir=${{ github.action_path }}/dist" >> "$GITHUB_OUTPUT"
+
+    - name: Upload Pages artifact
+      if: inputs.upload-pages-artifact == 'true'
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ${{ github.action_path }}/dist
