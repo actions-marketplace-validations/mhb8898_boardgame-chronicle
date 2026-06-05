@@ -1,0 +1,82 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getSite, href } from '../../lib/site';
+
+const site = getSite();
+const sessions = [...site.chronicle.sessions].reverse(); // newest first
+---
+
+<Layout title="The Log">
+  <h1>📜 The Log</h1>
+  <p class="muted">
+    Every recorded session, newest first — {sessions.length} total.
+  </p>
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Game</th>
+          <th>Group</th>
+          <th>Table</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sessions.map((s) => (
+          <tr>
+            <td class="date">
+              <a href={href(`/sessions/${s.id}/`)}>{s.date}</a>
+            </td>
+            <td>
+              <a href={href(`/games/${s.game}/`)}>{site.gameName(s.game)}</a>
+            </td>
+            <td>
+              <a class="muted-link" href={href(`/groups/${s.group}/`)}>{site.groupName(s.group)}</a>
+            </td>
+            <td>
+              {s.players.map((p) => (
+                <span class={`entry ${p.winner ? 'winner' : ''}`}>
+                  {p.winner && '🏆'}
+                  <a href={href(`/players/${p.player}/`)}>{site.playerName(p.player)}</a>
+                  {p.faction && (
+                    <span class="faction"> · {site.factionName(s.game, p.faction)}</span>
+                  )}
+                </span>
+              ))}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+</Layout>
+
+<style>
+  .date a {
+    font-variant-numeric: tabular-nums;
+    text-decoration: none;
+  }
+  .muted-link {
+    color: var(--muted);
+    text-decoration: none;
+  }
+  .muted-link:hover {
+    color: var(--accent);
+  }
+  .entry {
+    display: inline-block;
+    margin-right: 1rem;
+    white-space: nowrap;
+  }
+  .entry a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .entry.winner a {
+    font-weight: 700;
+  }
+  .faction {
+    color: var(--muted);
+    font-size: 0.85em;
+  }
+</style>

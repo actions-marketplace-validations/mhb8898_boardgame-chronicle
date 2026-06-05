@@ -1,6 +1,13 @@
 import { describe, expect, test } from 'vitest';
 import type { Session, SessionPlayer } from './schema';
-import { factionStats, headToHead, leaderboard, mostPlayedGames, winStreaks } from './stats';
+import {
+  factionAffinity,
+  factionStats,
+  headToHead,
+  leaderboard,
+  mostPlayedGames,
+  winStreaks,
+} from './stats';
 
 /** Compact session builder: players as "id", "id+" (winner), or full object. */
 function s(
@@ -75,6 +82,28 @@ describe('headToHead', () => {
     const h2h = headToHead(sessions, 'a');
     expect(h2h).toContainEqual({ opponent: 'b', shared: 3, wins: 2, losses: 1 });
     expect(h2h).toContainEqual({ opponent: 'c', shared: 2, wins: 2, losses: 0 });
+  });
+});
+
+describe('factionAffinity', () => {
+  test('plays and wins per (player, game, faction), most-played first', () => {
+    const extra = [
+      ...sessions,
+      s('2026-02-01-root', 'root', [
+        { player: 'a', faction: 'cats', winner: true },
+        { player: 'b', faction: 'birds' },
+      ]),
+    ];
+    expect(factionAffinity(extra)).toEqual([
+      { player: 'a', game: 'root', faction: 'cats', plays: 2, wins: 2 },
+      { player: 'b', game: 'root', faction: 'birds', plays: 2, wins: 0 },
+      { player: 'b', game: 'root', faction: 'cats', plays: 1, wins: 1 },
+      { player: 'a', game: 'root', faction: 'birds', plays: 1, wins: 0 },
+    ]);
+  });
+
+  test('ignores factionless entries', () => {
+    expect(factionAffinity([s('2026-01-15-azul', 'azul', ['a+', 'b'])])).toEqual([]);
   });
 });
 

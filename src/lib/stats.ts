@@ -59,6 +59,46 @@ export function factionStats(
     .sort((a, b) => b.wins - a.wins || b.plays - a.plays);
 }
 
+export interface FactionAffinity {
+  player: string;
+  game: string;
+  faction: string;
+  plays: number;
+  wins: number;
+}
+
+/**
+ * Plays and wins per (player, game, faction) — who gravitates to which faction.
+ * Sorted by plays desc, wins desc, then ids for determinism.
+ */
+export function factionAffinity(sessions: Session[]): FactionAffinity[] {
+  const byKey = new Map<string, FactionAffinity>();
+  for (const session of sessions) {
+    for (const p of session.players) {
+      if (p.faction === undefined) continue;
+      const key = `${p.player}:${session.game}:${p.faction}`;
+      const entry = byKey.get(key) ?? {
+        player: p.player,
+        game: session.game,
+        faction: p.faction,
+        plays: 0,
+        wins: 0,
+      };
+      entry.plays++;
+      if (p.winner) entry.wins++;
+      byKey.set(key, entry);
+    }
+  }
+  return [...byKey.values()].sort(
+    (a, b) =>
+      b.plays - a.plays ||
+      b.wins - a.wins ||
+      a.player.localeCompare(b.player) ||
+      a.game.localeCompare(b.game) ||
+      a.faction.localeCompare(b.faction),
+  );
+}
+
 export interface HeadToHead {
   opponent: string;
   /** Sessions both players took part in. */

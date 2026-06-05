@@ -3,8 +3,8 @@ import Layout from '../../layouts/Layout.astro';
 import SessionCard from '../../components/SessionCard.astro';
 import Leaderboard from '../../components/Leaderboard.astro';
 import StatBar from '../../components/StatBar.astro';
-import { getSite } from '../../lib/site';
-import { factionStats, leaderboard } from '../../lib/stats';
+import { getSite, href } from '../../lib/site';
+import { factionAffinity, factionStats, leaderboard } from '../../lib/stats';
 
 export function getStaticPaths() {
   return getSite().chronicle.games.map((g) => ({ params: { id: g.id } }));
@@ -15,6 +15,14 @@ const game = site.chronicle.games.find((g) => g.id === Astro.params.id)!;
 const sessions = site.chronicle.sessions.filter((s) => s.game === game.id);
 const factionNames = new Map((game.factions ?? []).map((f) => [f.id, f.name]));
 const factions = factionStats(sessions, game.id);
+
+// Who plays which faction: affinity rows for this game, grouped per faction.
+const regulars = new Map<string, { player: string; plays: number; wins: number }[]>();
+for (const row of factionAffinity(sessions)) {
+  const list = regulars.get(row.faction) ?? [];
+  list.push(row);
+  regulars.set(row.faction, list);
+}
 ---
 
 <Layout title={game.name}>
@@ -44,6 +52,7 @@ const factions = factionStats(sessions, game.id);
               <th class="num">Plays</th>
               <th class="num">Wins</th>
               <th>Win rate</th>
+              <th>Played by</th>
             </tr>
           </thead>
           <tbody>
@@ -53,6 +62,15 @@ const factions = factionStats(sessions, game.id);
                 <td class="num">{f.plays}</td>
                 <td class="num">{f.wins}</td>
                 <td><StatBar value={f.plays > 0 ? f.wins / f.plays : 0} /></td>
+                <td>
+                  {(regulars.get(f.faction) ?? []).map((r) => (
+                    <span style="margin-right:0.75rem;white-space:nowrap">
+                      {site.playerAvatar(r.player)}
+                      <a href={href(`/players/${r.player}/`)}>{site.playerName(r.player)}</a>
+                      <span class="muted">×{r.plays}</span>
+                    </span>
+                  ))}
+                </td>
               </tr>
             ))}
           </tbody>

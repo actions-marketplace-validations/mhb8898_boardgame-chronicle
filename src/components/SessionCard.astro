@@ -23,6 +23,7 @@ const winners = session.players.filter((p) => p.winner);
       <span class={p.winner ? 'winner' : ''}>
         {site.playerAvatar(p.player)}
         <a href={href(`/players/${p.player}/`)}>{site.playerName(p.player)}</a>
+        {p.faction && <span class="faction">{site.factionName(session.game, p.faction)}</span>}
         {p.winner && '🏆'}
       </span>
     ))}
@@ -55,6 +56,10 @@ const winners = session.players.filter((p) => p.winner);
   }
   .players .winner a {
     font-weight: 700;
+  }
+  .faction {
+    color: var(--muted);
+    font-size: 0.85em;
   }
   .notes {
     margin: 0.6rem 0 0;

@@ -12,6 +12,7 @@ export interface Site {
   playerAvatar(id: string): string;
   gameName(id: string): string;
   groupName(id: string): string;
+  factionName(gameId: string, factionId: string): string;
 }
 
 let cached: Site | undefined;
@@ -23,6 +24,9 @@ export function getSite(): Site {
   const players = new Map(chronicle.players.map((p) => [p.id, p]));
   const games = new Map(chronicle.games.map((g) => [g.id, g.name]));
   const groups = new Map(chronicle.groups.map((g) => [g.id, g.name]));
+  const factions = new Map(
+    chronicle.games.flatMap((g) => (g.factions ?? []).map((f) => [`${g.id}:${f.id}`, f.name])),
+  );
   cached = {
     config: readConfig(),
     chronicle,
@@ -31,6 +35,7 @@ export function getSite(): Site {
     playerAvatar: (id) => players.get(id)?.avatar ?? '🎲',
     gameName: (id) => games.get(id) ?? id,
     groupName: (id) => groups.get(id) ?? id,
+    factionName: (gameId, factionId) => factions.get(`${gameId}:${factionId}`) ?? factionId,
   };
   return cached;
 }
