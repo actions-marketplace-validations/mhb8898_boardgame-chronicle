@@ -50,33 +50,40 @@ inputs:
 outputs:
   site-dir:
     description: Absolute path of the built static site
-    value: ${{ steps.site.outputs.site-dir }}
+    value: ${{ steps.engine.outputs.path }}/dist
 
 runs:
   using: composite
   steps:
+    # github.action_path can contain a trailing `/.` (when used as a local
+    # action), which some actions reject — normalize it once.
+    - name: Resolve engine path
+      id: engine
+      shell: bash
+      run: echo "path=$(cd "${{ github.action_path }}" && pwd)" >> "$GITHUB_OUTPUT"
+
     - uses: actions/setup-node@v4
       with:
         node-version: 22
         cache: npm
-        cache-dependency-path: ${{ github.action_path }}/package-lock.json
+        cache-dependency-path: ${{ steps.engine.outputs.path }}/package-lock.json
 
     - name: Install engine dependencies
       shell: bash
-      working-directory: ${{ github.action_path }}
+      working-directory: ${{ steps.engine.outputs.path }}
       run: npm ci
 
     # Engine self-test against its demo data, before the overlay.
     - name: Engine self-test
       if: inputs.run-tests == 'true'
       shell: bash
-      working-directory: ${{ github.action_path }}
+      working-directory: ${{ steps.engine.outputs.path }}
       run: npm test
 
     - name: Overlay data and config
       shell: bash
       run: |
-        engine="${{ github.action_path }}"
+        engine="${{ steps.engine.outputs.path }}"
         data="${{ inputs.data-path }}"
         rm -rf "$engine/data"
         cp -r "$data/data" "$engine/data"
@@ -86,16 +93,11 @@ runs:
 
     - name: Build site
       shell: bash
-      working-directory: ${{ github.action_path }}
+      working-directory: ${{ steps.engine.outputs.path }}
       run: npx astro build
-
-    - name: Expose site directory
-      id: site
-      shell: bash
-      run: echo "site-dir=${{ github.action_path }}/dist" >> "$GITHUB_OUTPUT"
 
     - name: Upload Pages artifact
       if: inputs.upload-pages-artifact == 'true'
       uses: actions/upload-pages-artifact@v3
       with:
-        path: ${{ github.action_path }}/dist
+        path: ${{ steps.engine.outputs.path }}/dist
