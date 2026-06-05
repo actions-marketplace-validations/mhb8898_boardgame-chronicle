@@ -1,0 +1,64 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import BadgeChip from '../../components/BadgeChip.astro';
+import { getSite, href } from '../../lib/site';
+
+export function getStaticPaths() {
+  return getSite().chronicle.sessions.map((s) => ({ params: { id: s.id } }));
+}
+
+const site = getSite();
+const session = site.chronicle.sessions.find((s) => s.id === Astro.params.id)!;
+const game = site.chronicle.games.find((g) => g.id === session.game)!;
+const factionNames = new Map((game.factions ?? []).map((f) => [f.id, f.name]));
+const unlocked = site.awards.filter((a) => a.sessionId === session.id);
+const hasFactions = session.players.some((p) => p.faction !== undefined);
+const hasScores = session.players.some((p) => p.score !== undefined);
+---
+
+<Layout title={`${game.name} · ${session.date}`}>
+  <h1>{game.name}</h1>
+  <p class="muted">
+    {session.date} · <a href={href(`/groups/${session.group}/`)}>{site.groupName(session.group)}</a>
+    {session.location && ` · ${session.location}`}
+  </p>
+
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Player</th>
+          {hasFactions && <th>Faction</th>}
+          {hasScores && <th class="num">Score</th>}
+          <th>Result</th>
+        </tr>
+      </thead>
+      <tbody>
+        {session.players.map((p) => (
+          <tr>
+            <td>
+              {site.playerAvatar(p.player)}
+              <a href={href(`/players/${p.player}/`)}>{site.playerName(p.player)}</a>
+            </td>
+            {hasFactions && <td>{p.faction ? factionNames.get(p.faction) : '—'}</td>}
+            {hasScores && <td class="num">{p.score ?? '—'}</td>}
+            <td>{p.winner ? '🏆 Won' : ''}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  {session.notes && (
+    <section class="card">
+      <p style="margin:0;font-style:italic">{session.notes}</p>
+    </section>
+  )}
+
+  {unlocked.length > 0 && (
+    <>
+      <h2>Badges unlocked this session</h2>
+      <div>{unlocked.map((a) => <BadgeChip award={a} showPlayer />)}</div>
+    </>
+  )}
+</Layout>

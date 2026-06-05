@@ -1,17 +1,32 @@
 ---
+import Layout from '../layouts/Layout.astro';
+import SessionCard from '../components/SessionCard.astro';
+import Leaderboard from '../components/Leaderboard.astro';
+import BadgeChip from '../components/BadgeChip.astro';
+import { getSite } from '../lib/site';
+import { leaderboard } from '../lib/stats';
 
+const site = getSite();
+const { sessions, players, games } = site.chronicle;
+const recent = [...sessions].reverse().slice(0, 5);
+const latestBadges = [...site.awards].reverse().slice(0, 6);
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<Layout title="Home">
+  <h1>The Chronicle</h1>
+  <div class="stat-grid">
+    <div class="stat"><strong>{sessions.length}</strong><span>sessions logged</span></div>
+    <div class="stat"><strong>{players.length}</strong><span>players</span></div>
+    <div class="stat"><strong>{games.length}</strong><span>games</span></div>
+    <div class="stat"><strong>{site.awards.length}</strong><span>badges earned</span></div>
+  </div>
+
+  <h2>Leaderboard</h2>
+  <Leaderboard stats={leaderboard(sessions)} />
+
+  <h2>Latest badges</h2>
+  <div>{latestBadges.map((a) => <BadgeChip award={a} showPlayer />)}</div>
+
+  <h2>Recent sessions</h2>
+  {recent.map((s) => <SessionCard session={s} />)}
+</Layout>

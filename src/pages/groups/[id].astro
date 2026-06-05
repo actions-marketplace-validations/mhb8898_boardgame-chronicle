@@ -1,0 +1,48 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import SessionCard from '../../components/SessionCard.astro';
+import Leaderboard from '../../components/Leaderboard.astro';
+import { getSite, href } from '../../lib/site';
+import { leaderboard, mostPlayedGames } from '../../lib/stats';
+
+export function getStaticPaths() {
+  return getSite().chronicle.groups.map((g) => ({ params: { id: g.id } }));
+}
+
+const site = getSite();
+const group = site.chronicle.groups.find((g) => g.id === Astro.params.id)!;
+const sessions = site.chronicle.sessions.filter((s) => s.group === group.id);
+const topGames = mostPlayedGames(sessions).slice(0, 5);
+---
+
+<Layout title={group.name}>
+  <h1>{group.name}</h1>
+  {group.description && <p class="muted">{group.description}</p>}
+  <p>
+    {group.members.map((m) => (
+      <span style="margin-right:1rem">
+        {site.playerAvatar(m)} <a href={href(`/players/${m}/`)}>{site.playerName(m)}</a>
+      </span>
+    ))}
+  </p>
+
+  <h2>Group leaderboard</h2>
+  <Leaderboard stats={leaderboard(sessions)} />
+
+  <h2>Most played</h2>
+  <section class="card">
+    <table>
+      <tbody>
+        {topGames.map((f) => (
+          <tr>
+            <td><a href={href(`/games/${f.game}/`)}>{site.gameName(f.game)}</a></td>
+            <td class="num">{f.plays} plays</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  <h2>Sessions</h2>
+  {[...sessions].reverse().map((s) => <SessionCard session={s} />)}
+</Layout>

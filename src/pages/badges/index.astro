@@ -1,0 +1,47 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getSite, href } from '../../lib/site';
+import type { Award } from '../../badges/types';
+
+const site = getSite();
+
+// Group earned awards by badge kind for the gallery.
+const kinds = new Map<string, Award[]>();
+for (const award of site.awards) {
+  const list = kinds.get(award.badgeId) ?? [];
+  list.push(award);
+  kinds.set(award.badgeId, list);
+}
+---
+
+<Layout title="Badges">
+  <h1>Badge gallery</h1>
+  <p class="muted">
+    {kinds.size} badge {kinds.size === 1 ? 'kind' : 'kinds'} earned · {site.awards.length} total
+    awards
+  </p>
+  {[...kinds.values()].map((awards) => {
+    const first = awards[0]!;
+    return (
+      <section class="card">
+        <div style="display:flex;gap:0.75rem;align-items:baseline">
+          <span style="font-size:1.5rem">{first.icon}</span>
+          <div>
+            <strong>{first.title}</strong>
+            {first.source === 'manual' && <span class="muted"> · hand-awarded</span>}
+            <div class="muted">{first.description}</div>
+          </div>
+        </div>
+        <p style="margin:0.6rem 0 0">
+          {awards.map((a) => (
+            <span style="margin-right:1rem">
+              {site.playerAvatar(a.playerId)}
+              <a href={href(`/players/${a.playerId}/`)}>{site.playerName(a.playerId)}</a>
+              <span class="muted"> {a.date}</span>
+            </span>
+          ))}
+        </p>
+      </section>
+    );
+  })}
+</Layout>

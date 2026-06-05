@@ -1,0 +1,66 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import SessionCard from '../../components/SessionCard.astro';
+import Leaderboard from '../../components/Leaderboard.astro';
+import StatBar from '../../components/StatBar.astro';
+import { getSite } from '../../lib/site';
+import { factionStats, leaderboard } from '../../lib/stats';
+
+export function getStaticPaths() {
+  return getSite().chronicle.games.map((g) => ({ params: { id: g.id } }));
+}
+
+const site = getSite();
+const game = site.chronicle.games.find((g) => g.id === Astro.params.id)!;
+const sessions = site.chronicle.sessions.filter((s) => s.game === game.id);
+const factionNames = new Map((game.factions ?? []).map((f) => [f.id, f.name]));
+const factions = factionStats(sessions, game.id);
+---
+
+<Layout title={game.name}>
+  <h1>{game.name}</h1>
+  <p class="muted">
+    {sessions.length} recorded {sessions.length === 1 ? 'session' : 'sessions'}
+    {game.minPlayers && game.maxPlayers && ` · ${game.minPlayers}–${game.maxPlayers} players`}
+    {game.bggId && (
+      <>
+        {' · '}
+        <a href={`https://boardgamegeek.com/boardgame/${game.bggId}`}>BoardGameGeek ↗</a>
+      </>
+    )}
+  </p>
+
+  <h2>Leaderboard</h2>
+  <Leaderboard stats={leaderboard(sessions)} />
+
+  {factions.length > 0 && (
+    <>
+      <h2>Faction record</h2>
+      <section class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Faction</th>
+              <th class="num">Plays</th>
+              <th class="num">Wins</th>
+              <th>Win rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {factions.map((f) => (
+              <tr>
+                <td>{factionNames.get(f.faction) ?? f.faction}</td>
+                <td class="num">{f.plays}</td>
+                <td class="num">{f.wins}</td>
+                <td><StatBar value={f.plays > 0 ? f.wins / f.plays : 0} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </>
+  )}
+
+  <h2>Sessions</h2>
+  {[...sessions].reverse().map((s) => <SessionCard session={s} />)}
+</Layout>

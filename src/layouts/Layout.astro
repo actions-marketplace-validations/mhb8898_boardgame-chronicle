@@ -1,0 +1,167 @@
+---
+import { href } from '../lib/site';
+
+interface Props {
+  title: string;
+}
+const { title } = Astro.props;
+
+const nav = [
+  { label: 'Home', path: '/' },
+  { label: 'Players', path: '/players/' },
+  { label: 'Groups', path: '/groups/' },
+  { label: 'Games', path: '/games/' },
+  { label: 'Badges', path: '/badges/' },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" type="image/svg+xml" href={href('/favicon.svg')} />
+    <title>{title} · Boardgame Chronicle</title>
+  </head>
+  <body>
+    <header>
+      <a class="brand" href={href('/')}>🎲 Boardgame Chronicle</a>
+      <nav>
+        {nav.map((item) => <a href={href(item.path)}>{item.label}</a>)}
+      </nav>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer>Generated from the game log · <a href="https://github.com/mhb8898/boardgame-chronicle">data &amp; source</a></footer>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --bg: #faf6ef;
+    --card: #ffffff;
+    --ink: #2b2620;
+    --muted: #8a7f70;
+    --accent: #b4552d;
+    --accent-soft: #f3e1d6;
+    --border: #e7ded0;
+    --gold: #c9a227;
+  }
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: ui-rounded, 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.55;
+  }
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.5rem 1.5rem;
+    padding: 1rem 1.5rem;
+    border-bottom: 2px solid var(--border);
+    background: var(--card);
+  }
+  .brand {
+    font-weight: 800;
+    font-size: 1.2rem;
+    text-decoration: none;
+    color: var(--ink);
+  }
+  nav {
+    display: flex;
+    gap: 1rem;
+  }
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-weight: 600;
+  }
+  nav a:hover {
+    color: var(--accent);
+  }
+  main {
+    max-width: 60rem;
+    margin: 0 auto;
+    padding: 1.5rem;
+  }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    padding: 2rem 0 3rem;
+  }
+  a {
+    color: var(--accent);
+  }
+  h1 {
+    font-size: 1.7rem;
+    margin: 0.5rem 0 1rem;
+  }
+  h2 {
+    font-size: 1.15rem;
+    margin: 2rem 0 0.75rem;
+  }
+  section.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.95rem;
+  }
+  th {
+    text-align: left;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.4rem 0.6rem;
+    border-bottom: 2px solid var(--border);
+  }
+  td {
+    padding: 0.45rem 0.6rem;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  .muted {
+    color: var(--muted);
+  }
+  .num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .stat {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    text-align: center;
+  }
+  .stat strong {
+    display: block;
+    font-size: 1.6rem;
+    color: var(--accent);
+  }
+  .stat span {
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+</style>

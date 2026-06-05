@@ -1,0 +1,55 @@
+---
+import type { Award } from '../badges/types';
+import { getSite, href } from '../lib/site';
+
+interface Props {
+  award: Award;
+  showPlayer?: boolean;
+}
+const { award, showPlayer = false } = Astro.props;
+const site = getSite();
+---
+
+<span class={`badge ${award.tier ?? ''}`} title={award.description}>
+  <span class="icon">{award.icon}</span>
+  <span>
+    {award.title}
+    {showPlayer && (
+      <a href={href(`/players/${award.playerId}/`)}>{site.playerName(award.playerId)}</a>
+    )}
+    {award.sessionId ? (
+      <a class="muted" href={href(`/sessions/${award.sessionId}/`)}>{award.date}</a>
+    ) : (
+      <span class="muted">{award.date}</span>
+    )}
+  </span>
+</span>
+
+<style>
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.3rem 0.85rem 0.3rem 0.5rem;
+    margin: 0 0.4rem 0.4rem 0;
+    font-size: 0.9rem;
+  }
+  .badge.gold {
+    border-color: var(--gold);
+  }
+  .icon {
+    font-size: 1.2rem;
+  }
+  .muted {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-left: 0.35rem;
+    text-decoration: none;
+  }
+  a.muted:hover {
+    color: var(--accent);
+  }
+</style>

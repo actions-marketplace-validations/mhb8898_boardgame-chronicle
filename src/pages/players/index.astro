@@ -1,0 +1,13 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Leaderboard from '../../components/Leaderboard.astro';
+import { getSite } from '../../lib/site';
+import { leaderboard } from '../../lib/stats';
+
+const site = getSite();
+---
+
+<Layout title="Players">
+  <h1>Players</h1>
+  <Leaderboard stats={leaderboard(site.chronicle.sessions)} />
+</Layout>

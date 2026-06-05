@@ -1,0 +1,41 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getSite, href } from '../../lib/site';
+import { mostPlayedGames } from '../../lib/stats';
+
+const site = getSite();
+const plays = new Map(mostPlayedGames(site.chronicle.sessions).map((g) => [g.game, g.plays]));
+const games = [...site.chronicle.games].sort(
+  (a, b) => (plays.get(b.id) ?? 0) - (plays.get(a.id) ?? 0),
+);
+---
+
+<Layout title="Games">
+  <h1>Games</h1>
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Game</th>
+          <th class="num">Plays</th>
+          <th class="num">Factions</th>
+          <th>BGG</th>
+        </tr>
+      </thead>
+      <tbody>
+        {games.map((g) => (
+          <tr>
+            <td><a href={href(`/games/${g.id}/`)}>{g.name}</a></td>
+            <td class="num">{plays.get(g.id) ?? 0}</td>
+            <td class="num">{g.factions?.length ?? '—'}</td>
+            <td>
+              {g.bggId && (
+                <a class="muted" href={`https://boardgamegeek.com/boardgame/${g.bggId}`}>↗</a>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+</Layout>

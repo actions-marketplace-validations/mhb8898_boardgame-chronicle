@@ -1,0 +1,64 @@
+---
+import type { Session } from '../lib/schema';
+import { getSite, href } from '../lib/site';
+
+interface Props {
+  session: Session;
+}
+const { session } = Astro.props;
+const site = getSite();
+const winners = session.players.filter((p) => p.winner);
+---
+
+<section class="card">
+  <div class="head">
+    <a class="game" href={href(`/sessions/${session.id}/`)}>{site.gameName(session.game)}</a>
+    <span class="muted">
+      {session.date} · <a href={href(`/groups/${session.group}/`)}>{site.groupName(session.group)}</a>
+      {session.location && ` · ${session.location}`}
+    </span>
+  </div>
+  <div class="players">
+    {session.players.map((p) => (
+      <span class={p.winner ? 'winner' : ''}>
+        {site.playerAvatar(p.player)}
+        <a href={href(`/players/${p.player}/`)}>{site.playerName(p.player)}</a>
+        {p.winner && '🏆'}
+      </span>
+    ))}
+  </div>
+  {winners.length === 0 && <p class="muted">The game won this one.</p>}
+  {session.notes && <p class="notes">{session.notes}</p>}
+</section>
+
+<style>
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+  }
+  .game {
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-decoration: none;
+  }
+  .players {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    margin-top: 0.5rem;
+  }
+  .players a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .players .winner a {
+    font-weight: 700;
+  }
+  .notes {
+    margin: 0.6rem 0 0;
+    color: var(--muted);
+    font-style: italic;
+  }
+</style>

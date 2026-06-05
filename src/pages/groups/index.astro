@@ -1,0 +1,30 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getSite, href } from '../../lib/site';
+
+const site = getSite();
+const counts = new Map<string, number>();
+for (const s of site.chronicle.sessions) counts.set(s.group, (counts.get(s.group) ?? 0) + 1);
+---
+
+<Layout title="Groups">
+  <h1>Groups</h1>
+  {site.chronicle.groups.map((g) => (
+    <section class="card">
+      <h2 style="margin-top:0">
+        <a href={href(`/groups/${g.id}/`)}>{g.name}</a>
+        <span class="muted" style="font-weight:normal;font-size:0.85rem">
+          · {counts.get(g.id) ?? 0} sessions
+        </span>
+      </h2>
+      {g.description && <p class="muted">{g.description}</p>}
+      <p>
+        {g.members.map((m) => (
+          <span style="margin-right:1rem">
+            {site.playerAvatar(m)} <a href={href(`/players/${m}/`)}>{site.playerName(m)}</a>
+          </span>
+        ))}
+      </p>
+    </section>
+  ))}
+</Layout>

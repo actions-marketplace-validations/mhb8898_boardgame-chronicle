@@ -1,0 +1,28 @@
+---
+interface Props {
+  /** 0..1 */
+  value: number;
+}
+const { value } = Astro.props;
+const pct = Math.round(Math.min(Math.max(value, 0), 1) * 100);
+---
+
+<div class="statbar" title={`${pct}%`}>
+  <div style={`width: ${pct}%`}></div>
+</div>
+
+<style>
+  .statbar {
+    width: 100%;
+    min-width: 4rem;
+    height: 0.5rem;
+    background: var(--accent-soft);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .statbar div {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 999px;
+  }
+</style>

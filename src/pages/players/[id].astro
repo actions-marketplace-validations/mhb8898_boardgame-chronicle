@@ -1,0 +1,85 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import SessionCard from '../../components/SessionCard.astro';
+import BadgeChip from '../../components/BadgeChip.astro';
+import StatBar from '../../components/StatBar.astro';
+import { getSite, href } from '../../lib/site';
+import { headToHead, leaderboard, mostPlayedGames } from '../../lib/stats';
+
+export function getStaticPaths() {
+  return getSite().chronicle.players.map((p) => ({ params: { id: p.id } }));
+}
+
+const site = getSite();
+const player = site.chronicle.players.find((p) => p.id === Astro.params.id)!;
+const sessions = site.chronicle.sessions.filter((s) =>
+  s.players.some((p) => p.player === player.id),
+);
+const stats = leaderboard(sessions).find((row) => row.player === player.id);
+const badges = site.awards.filter((a) => a.playerId === player.id);
+const favorites = mostPlayedGames(site.chronicle.sessions, player.id).slice(0, 5);
+const h2h = headToHead(site.chronicle.sessions, player.id);
+---
+
+<Layout title={player.name}>
+  <h1>{player.avatar ?? '🎲'} {player.name}</h1>
+
+  <div class="stat-grid">
+    <div class="stat"><strong>{stats?.plays ?? 0}</strong><span>plays</span></div>
+    <div class="stat"><strong>{stats?.wins ?? 0}</strong><span>wins</span></div>
+    <div class="stat">
+      <strong>{Math.round((stats?.winRate ?? 0) * 100)}%</strong><span>win rate</span>
+    </div>
+    <div class="stat"><strong>{badges.length}</strong><span>badges</span></div>
+  </div>
+
+  <h2>Badge case</h2>
+  {badges.length === 0 && <p class="muted">No badges yet — play more games!</p>}
+  <div>{badges.map((a) => <BadgeChip award={a} />)}</div>
+
+  <h2>Favorite games</h2>
+  <section class="card">
+    <table>
+      <tbody>
+        {favorites.map((f) => (
+          <tr>
+            <td><a href={href(`/games/${f.game}/`)}>{site.gameName(f.game)}</a></td>
+            <td class="num">{f.plays} plays</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  <h2>Head to head</h2>
+  <section class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Opponent</th>
+          <th class="num">Shared</th>
+          <th class="num">Wins</th>
+          <th class="num">Losses</th>
+          <th>Edge</th>
+        </tr>
+      </thead>
+      <tbody>
+        {h2h.map((row) => (
+          <tr>
+            <td>
+              {site.playerAvatar(row.opponent)}
+              <a href={href(`/players/${row.opponent}/`)}>{site.playerName(row.opponent)}</a>
+            </td>
+            <td class="num">{row.shared}</td>
+            <td class="num">{row.wins}</td>
+            <td class="num">{row.losses}</td>
+            <td><StatBar value={row.wins + row.losses > 0 ? row.wins / (row.wins + row.losses) : 0.5} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </section>
+
+  <h2>Session history</h2>
+  {[...sessions].reverse().map((s) => <SessionCard session={s} />)}
+</Layout>

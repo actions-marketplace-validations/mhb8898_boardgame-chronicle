@@ -1,0 +1,40 @@
+---
+import type { PlayerStats } from '../lib/stats';
+import { getSite, href } from '../lib/site';
+import StatBar from './StatBar.astro';
+
+interface Props {
+  stats: PlayerStats[];
+}
+const { stats } = Astro.props;
+const site = getSite();
+---
+
+<section class="card">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Player</th>
+        <th class="num">Plays</th>
+        <th class="num">Wins</th>
+        <th colspan="2">Win rate</th>
+      </tr>
+    </thead>
+    <tbody>
+      {stats.map((row, i) => (
+        <tr>
+          <td class="muted">{i + 1}</td>
+          <td>
+            {site.playerAvatar(row.player)}
+            <a href={href(`/players/${row.player}/`)}>{site.playerName(row.player)}</a>
+          </td>
+          <td class="num">{row.plays}</td>
+          <td class="num">{row.wins}</td>
+          <td class="num">{Math.round(row.winRate * 100)}%</td>
+          <td><StatBar value={row.winRate} /></td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</section>
