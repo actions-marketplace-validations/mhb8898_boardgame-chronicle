@@ -25,6 +25,12 @@ on:
         description: Git ref of the engine to build with (tag, branch, or SHA)
         type: string
         default: main
+      data-ref:
+        # For issue-triggered callers (log-issue.yml) the event SHA predates
+        # the session commit — pass the branch name to build its current head.
+        description: Git ref of the data repo to build (defaults to the triggering SHA)
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -49,6 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: site-data
+          ref: ${{ inputs.data-ref }}
 
       # The engine checkout at the workspace root is also the composite
       # action (action.yml), so the engine-ref input picks the action version.

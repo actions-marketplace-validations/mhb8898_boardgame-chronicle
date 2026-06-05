@@ -168,6 +168,8 @@ To enable it, in your **data repo**:
        needs: log
        if: needs.log.outputs.committed == 'true'
        uses: mhb8898/boardgame-chronicle/.github/workflows/build-deploy.yml@main
+       with: # build the branch head, not the pre-commit event SHA
+         data-ref: ${{ github.event.repository.default_branch }}
    ```
 
 3. Create the `log` and `approved` labels in your repo
